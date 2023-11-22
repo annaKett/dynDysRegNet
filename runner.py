@@ -15,8 +15,9 @@ filter_hvg = False
 flavor = 'seurat_v3'
 data_dir = os.path.join('/nfs', 'data3', 'akett_data')
 adata_all = sc.read_h5ad(os.path.join(data_dir, counts_file))
+sc.settings.verbosity = 0
 
-for sub in set(adata_all.obs['ann_level_2'].values[0]):
+for sub in ['Alveolar epithelium']:#set(adata_all.obs['ann_level_2'].values[0]):
 
     print(f'\n----------\nStarting processing of {sub} subset.')
     subset = sub
@@ -39,7 +40,7 @@ for sub in set(adata_all.obs['ann_level_2'].values[0]):
     #adata.write_h5ad(filename=os.path.join(out_dir, out_afx+'_batch_corrected'))
 
     print(f'Start pseudotime inference with DPT.\n')
-    pti = PseudotimeInferenceFactory().get_pseudotime_algorithm(adata, method='DPT', num_pcs=50, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)
+    pti = PseudotimeInferenceFactory().get_pseudotime_algorithm(adata, method='dpt', num_pcs=50, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)
     pti.infer_pseudotime()
 
     print(f'Start pseudo bulk clustering with TODO')
