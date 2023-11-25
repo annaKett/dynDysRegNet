@@ -35,9 +35,14 @@ for sub in ['Alveolar epithelium']:#set(adata_all.obs['ann_level_2'].values[0]):
     print(f'out_dir={out_dir}, counts_file={counts_file}, bc_method={bc_method}, subset={subset}, filter_hvg={filter_hvg}')
 
     print(f'Start batch correction with {bc_method}, generate 50 PCs.\n')
-    bc = BatchCorrectorFactory().get_batch_corrector(adata, method='harmony', num_pcs=50, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)
-    bc.correct_batch()
-    #adata.write_h5ad(filename=os.path.join(out_dir, out_afx+'_batch_corrected'))
+    if os.path.exists(os.path.join(out_dir, out_afx+'_batch_corrected')):
+        print('Found batch corrected data.')
+        adata = sc.read_h5ad(os.path.join(out_dir, out_afx+'_batch_corrected'))
+    else:
+        bc = BatchCorrectorFactory().get_batch_corrector(adata, method='harmony', num_pcs=50, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)
+        bc.correct_batch()
+        adata.write_h5ad(filename=os.path.join(out_dir, out_afx+'_batch_corrected'))
+
 
     print(f'Start pseudotime inference with DPT.\n')
     pti = PseudotimeInferenceFactory().get_pseudotime_algorithm(adata, method='dpt', num_pcs=50, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)

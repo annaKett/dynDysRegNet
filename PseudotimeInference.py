@@ -50,36 +50,76 @@ class DPT(PseudotimeInference):
         self.out_dir = kwargs['out_dir'] if kwargs['out_dir'] else os.getcwd()
         self.out_afx = kwargs['out_afx'] if kwargs['out_afx'] else 'unspecified'
 
-    def infer_pseudotime(self): # TODO check again: does this touch the uncorrected data .X somehow?
+    def infer_pseudotime(self, paga=False):
         """Infer diffusion pseudotime (DPT)."""
         #  first, use paga to infer a graph of cell paths
         sc.pp.neighbors(self.adata, n_neighbors=10, n_pcs=self.num_pcs, use_rep='X_pca')
         sc.tl.diffmap(self.adata) # The width of the connectivity kernel is implicitly determined by the number of neighbors used to compute the single-cell graph in neighbors()
         sc.pp.neighbors(self.adata, n_neighbors=10, use_rep='X_diffmap') # compute neigbors based on diffmap representation
-        sc.tl.draw_graph(self.adata) # uses connectivities from neighbors
-        fig, ax = plt.subplots()
-        sc.pl.draw_graph(self.adata, color='cell_type', legend_loc='on data', show=False, ax=ax)
-        fig.savefig(os.path.join(self.data_dir, self.out_afx + '_1_diffmap_neigh_graph.pdf'), bbox_inches='tight')
+        
+        if paga:
+            #sc.tl.draw_graph(self.adata) # uses connectivities from neighbors
+        
+            #fig, ax = plt.subplots()
+            #sc.pl.draw_graph(self.adata, color='cell_type', legend_loc='on data', show=False, ax=ax)
+            #fig.savefig(os.path.join(self.data_dir, self.out_afx + '_1_diffmap_neigh_graph.pdf'), bbox_inches='tight')
 
-        sc.tl.leiden(self.adata) # uses connectivities from neighbors
-        sc.tl.paga(self.adata, groups='leiden') # uses leiden clustering
+            sc.tl.leiden(self.adata) # uses connectivities from neighbors
+            sc.tl.paga(self.adata, groups='leiden') # uses leiden clustering
 
-        fig, ax = plt.subplots()
-        sc.pl.paga(self.adata, color=['leiden'], show=False, ax=ax)
-        fig.savefig(os.path.join(self.data_dir, self.out_afx + '_2_paga.pdf'), bbox_inches='tight')
+            fig, ax = plt.subplots()
+            sc.pl.paga(self.adata, color=['leiden'], show=False, ax=ax)
+            fig.savefig(os.path.join(self.data_dir, self.out_afx + '_2_paga.pdf'), bbox_inches='tight')
 
-        sc.tl.draw_graph(self.adata, init_pos='paga')
+            sc.tl.draw_graph(self.adata, init_pos='paga')
 
-        fig, ax = plt.subplots()
-        sc.pl.draw_graph(self.adata, color=['leiden'], legend_loc='on data', show=False, ax=ax)
-        fig.savefig(os.path.join(self.data_dir, self.out_afx + '_3_paga_draw_graph.pdf'), bbox_inches='tight')
+            fig, ax = plt.subplots()
+            sc.pl.draw_graph(self.adata, color=['leiden'], legend_loc='on data', show=False, ax=ax)
+            fig.savefig(os.path.join(self.data_dir, self.out_afx + '_3_paga_draw_graph.pdf'), bbox_inches='tight')
 
         # then, use dpt to link paga paths with a pseudotime
-        adata.uns['iroot'] = np.flatnonzero(self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells')[0]
+        self.adata.uns['iroot'] = np.flatnonzero(self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells')[0]
         sc.tl.dpt(self.adata) # uses neighbors and diffmap
 
-        fig, ax = plt.subplots()
-        sc.pl.draw_graph(self.adata, color=['leiden'], legend_loc='on data', show=False, ax=ax)
-        fig.savefig(os.path.join(self.data_dir, self.out_afx + '_4_dpt.pdf'), bbox_inches='tight')
+        if paga:
+            fig, ax = plt.subplots()
+            sc.pl.draw_graph(self.adata, color=['dpt_pseudotime'], legend_loc='on data', show=False, ax=ax)
+            fig.savefig(os.path.join(self.data_dir, self.out_afx + '_4_dpt.pdf'), bbox_inches='tight')
 
-        #self.adata.write_h5ad(filename=os.path.join(out_dir, out_afx+'_dpt'))
+        fig, ax = plt.subplots()
+        sc.pl.scatter(
+            self.adata,
+            basis="pca",
+            color=["dpt_pseudotime"],
+            color_map="gnuplot2",
+            title='pca_dpt_pseudotime',
+            ax=ax)
+        fig.savefig(os.path.join(self.data_dir, self.out_afx + '_5_dpt.pdf'), bbox_inches='tight')
+
+        fig, ax = plt.subplots()
+        sc.pl.scatter(
+            self.adata,
+            basis="diffmap",
+            color=["dpt_pseudotime"],
+            color_map="gnuplot2",
+            components=[2, 3],
+            title='diffmap_dpt_pseudotime',
+            ax=ax)
+        fig.savefig(os.path.join(self.data_dir, self.out_afx + '_6_dpt.pdf'), bbox_inches='tight')
+
+
+        fig, ax = plt.subplots()   
+        sc.pl.scatter(
+            self.adata,
+            basis="diffmap",
+            color=["cell_type"],
+            color_map="gnuplot2",
+            components=[2, 3],
+            title='cell_type_diffmap_dpt_pseudotime',
+            ax=ax)
+        fig.savefig(os.path.join(self.data_dir, self.out_afx + '_7_dpt.pdf'), bbox_inches='tight')
+
+        sc.pl.dpt_groups_pseudotime(self.adata)
+        sc.pl.dpt_timeseries(self.adata)
+
+        self.adata.write_h5ad(filename=os.path.join(self.out_dir, self.out_afx+'_dpt'))
