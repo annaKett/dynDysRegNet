@@ -70,7 +70,6 @@ class HarmonyBatchCorrector(BatchCorrector):
         utils.u_print('Storing batch corrected embedding in adata.obsm[\'X_pca\'].', verbose=self.verbose)
         utils.u_print(f'Storing adata with batch corrected PCA embedding in {self.data_dir}/{self.out_dir}/X_pca_from_harmony.h5ad.', verbose=self.verbose)
         self.adata.obsm['X_pca'] = self.adata.obsm['X_pca_harmony']
-        self.adata.write_h5ad(filename=os.path.join(self.data_dir, 'X_pca_from_harmony.h5ad'))
 
         # plot after batch correction
         super().plot_pcs(self.adata, save=os.path.join(self.out_dir, self.out_afx+'_after_bc.pdf'), title='PC1 and PC2 embedding after batch correction')
