@@ -38,6 +38,21 @@ class PseudotimeInference(ABC):
         """Abstract batch correction method."""
         pass
 
+    @staticmethod
+    def plot_scatter(adata, save, title, basis, colors, show=False):
+        fig, ax = plt.subplots()
+        ax.set_title(title)
+        sc.pl.scatter(
+            adata,
+            basis=basis,
+            color=colors,
+            color_map="gnuplot2",
+            ax=ax)
+        if save:
+            fig.savefig(save, bbox_inches='tight')
+        if show:
+            plt.show()
+
 
 class DPT(PseudotimeInference):
     """Concrete class implementing pseudotime inference with DPT. TODO insert source."""
@@ -54,11 +69,33 @@ class DPT(PseudotimeInference):
     def infer_pseudotime(self):
         """Infer diffusion pseudotime (DPT)."""
         #  first, use paga to infer a graph of cell paths
-        sc.pp.neighbors(self.adata, n_neighbors=10, n_pcs=self.num_pcs, use_rep='X_pca')
-        sc.tl.diffmap(self.adata) # The width of the connectivity kernel is implicitly determined by the number of neighbors used to compute the single-cell graph in neighbors()
-        sc.pp.neighbors(self.adata, n_neighbors=10, use_rep='X_diffmap') # compute neigbors based on diffmap representation
+        sc.pp.neighbors(self.adata, n_neighbors=10, n_pcs=self.num_pcs, use_rep='X_pca', method='gauss')
+        # The width of the connectivity kernel is implicitly determined by the number of neighbors used to compute the single-cell graph in neighbors()
+        sc.tl.diffmap(self.adata)
+        # compute neighbors based on diffmap representation
+        #sc.pp.neighbors(self.adata, n_neighbors=10, use_rep='X_diffmap', method='gauss')
         
         if self.paga:
+            self._apply_paga()
+
+        # then, use dpt to link paga paths with a pseudotime
+        stem = np.flatnonzero(self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells')
+        np.random.seed(123456789)
+        index = np.random.choice(stem.shape[0], 1, replace=False)
+        self.adata.uns['iroot'] = stem[index][0]
+        # use neighbors and diffmap to compute dpt pseudotime
+        sc.tl.dpt(self.adata)
+
+        #super().plot_scatter(self.adata, os.path.join(self.out_dir, self.out_afx + '_5_dpt.png'), '5: PCA embedding colored by pseudo time', 'pca', ['dpt_pseudotime'])
+        #super().plot_scatter(self.adata, os.path.join(self.out_dir, self.out_afx + '_6_dpt.png'), '6: Diffmap colored by pseudo time', 'diffmap', ['dpt_pseudotime'])
+        #super().plot_scatter(self.adata, os.path.join(self.out_dir, self.out_afx + '_7_dpt.png'), '7: Diffmap colored by cell_type', 'diffmap', ['cell_type'])
+
+        #sc.pl.dpt_groups_pseudotime(self.adata)
+        #sc.pl.dpt_timeseries(self.adata)
+
+        self.adata.write_h5ad(filename=os.path.join(self.out_dir, self.out_afx+'_dpt.h5ad'))
+
+    def _apply_paga(self):
             sc.tl.draw_graph(self.adata) # uses connectivities from neighbors
         
             fig, ax = plt.subplots()
@@ -70,9 +107,14 @@ class DPT(PseudotimeInference):
             sc.tl.paga(self.adata, groups='leiden') # uses leiden clustering
 
             fig, ax = plt.subplots()
-            ax.set_title('2.1&2.2: Force directed graph colored by cell_type and Leiden clusters')
-            sc.pl.draw_graph(self.adata, color=['cell_type', 'leiden'], legend_loc='on data', show=False, ax=ax)
+            ax.set_title('2.1: Force directed graph colored by cell_type clusters')
+            sc.pl.draw_graph(self.adata, color=['cell_type'], legend_loc='on data', show=False, ax=ax)
             fig.savefig(os.path.join(self.out_dir, self.out_afx + '_21_fa_diffmap_neigh_graph.pdf'), bbox_inches='tight')
+
+            fig, ax = plt.subplots()
+            ax.set_title('2.2: Force directed graph colored by Leiden clusters')
+            sc.pl.draw_graph(self.adata, color=['leiden'], legend_loc='on data', show=False, ax=ax)
+            fig.savefig(os.path.join(self.out_dir, self.out_afx + '_22_fa_diffmap_neigh_graph.pdf'), bbox_inches='tight')
 
             fig, ax = plt.subplots()
             ax.set_title('2: Paga graph colored by Leiden clusters')
@@ -82,57 +124,11 @@ class DPT(PseudotimeInference):
             sc.tl.draw_graph(self.adata, init_pos='paga')
 
             fig, ax = plt.subplots()
-            ax.set_title('3: Force directed graph colored by Leiden clusters and cell_type')
-            sc.pl.draw_graph(self.adata, color=['leiden', 'cell_type'], legend_loc='on data', show=False, ax=ax)
-            fig.savefig(os.path.join(self.out_dir, self.out_afx + '_3_paga_draw_graph.pdf'), bbox_inches='tight')
+            ax.set_title('3: Force directed graph colored by cell_type clusters')
+            sc.pl.draw_graph(self.adata, color=['cell_type'], legend_loc='on data', show=False, ax=ax)
+            fig.savefig(os.path.join(self.out_dir, self.out_afx + '_31_paga_draw_graph.pdf'), bbox_inches='tight')
 
-        # then, use dpt to link paga paths with a pseudotime
-        self.adata.uns['iroot'] = np.flatnonzero(self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells')[0]
-        sc.tl.dpt(self.adata) # uses neighbors and diffmap
-
-        if self.paga:
             fig, ax = plt.subplots()
-            ax.set_title('4: Force directed graph colored by pseudo time')
-            sc.pl.draw_graph(self.adata, color=['dpt_pseudotime'], legend_loc='on data', show=False, ax=ax)
-            fig.savefig(os.path.join(self.out_dir, self.out_afx + '_4_dpt.pdf'), bbox_inches='tight')
-
-        fig, ax = plt.subplots()
-        ax.set_title('5: PCA embedding colored by pseudo time')
-        sc.pl.scatter(
-            self.adata,
-            basis="pca",
-            color=["dpt_pseudotime"],
-            color_map="gnuplot2",
-            title='pca_dpt_pseudotime',
-            ax=ax)
-        fig.savefig(os.path.join(self.out_dir, self.out_afx + '_5_dpt.pdf'), bbox_inches='tight')
-
-        fig, ax = plt.subplots()
-        ax.set_title('6: Diffmap colored by pseudo time')
-        sc.pl.scatter(
-            self.adata,
-            basis="diffmap",
-            color=["dpt_pseudotime"],
-            color_map="gnuplot2",
-            components=[2, 3],
-            title='diffmap_dpt_pseudotime',
-            ax=ax)
-        fig.savefig(os.path.join(self.out_dir, self.out_afx + '_6_dpt.pdf'), bbox_inches='tight')
-
-
-        fig, ax = plt.subplots()  
-        ax.set_title('7: Diffmap colored by cell_type') 
-        sc.pl.scatter(
-            self.adata,
-            basis="diffmap",
-            color=["cell_type"],
-            color_map="gnuplot2",
-            components=[2, 3],
-            title='cell_type_diffmap_dpt_pseudotime',
-            ax=ax)
-        fig.savefig(os.path.join(self.out_dir, self.out_afx + '_7_dpt.pdf'), bbox_inches='tight')
-
-        #sc.pl.dpt_groups_pseudotime(self.adata)
-        #sc.pl.dpt_timeseries(self.adata)
-
-        self.adata.write_h5ad(filename=os.path.join(self.out_dir, self.out_afx+'_dpt.h5ad'))
+            ax.set_title('3: Force directed graph colored by Leiden clusters')
+            sc.pl.draw_graph(self.adata, color=['leiden'], legend_loc='on data', show=False, ax=ax)
+            fig.savefig(os.path.join(self.out_dir, self.out_afx + '_32_paga_draw_graph.pdf'), bbox_inches='tight')

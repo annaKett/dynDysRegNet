@@ -63,7 +63,7 @@ class HarmonyBatchCorrector(BatchCorrector):
         sc.tl.pca(self.adata, n_comps=50)
 
         # plot before batch correction
-        super().plot_pcs(self.adata, save=os.path.join(self.out_dir, self.out_afx+'_before_bc.pdf'), title='PC1 and PC2 embedding before batch correction')
+        #super().plot_pcs(self.adata, save=os.path.join(self.out_dir, self.out_afx+'_before_bc.pdf'), title='PC1 and PC2 embedding before batch correction')
 
         # apply batch correction; afterwards, use (batch corrected) X_pca_harmony as default pca embedding
         sc.external.pp.harmony_integrate(self.adata, key='dataset', basis='X_pca')
@@ -72,6 +72,6 @@ class HarmonyBatchCorrector(BatchCorrector):
         self.adata.obsm['X_pca'] = self.adata.obsm['X_pca_harmony']
 
         # plot after batch correction
-        super().plot_pcs(self.adata, save=os.path.join(self.out_dir, self.out_afx+'_after_bc.pdf'), title='PC1 and PC2 embedding after batch correction')
+        #super().plot_pcs(self.adata, save=os.path.join(self.out_dir, self.out_afx+'_after_bc.pdf'), title='PC1 and PC2 embedding after batch correction')
 
 

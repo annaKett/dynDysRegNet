@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import random
 from BatchCorrector import BatchCorrectorFactory
 from PseudotimeInference import PseudotimeInferenceFactory
+from PseudobulkClustering import PseudobulkClustererFactory
 
 counts_file = 'hlca_core.h5ad'
 bc_method = 'harmony'
@@ -25,7 +26,6 @@ if not os.path.exists(os.path.join(data_dir, 'results')):
 for sub in ['Alveolar epithelium']:#set(adata_all.obs['ann_level_2'].values[0]):
 
     print(f'\n----------\nStarting processing of {sub} subset.')
-    subset = sub
     adata = adata_all[(adata_all.obs['ann_level_2'] == sub) | (adata_all.obs['ann_level_2'] == 'Hematopoietic stem cells')]
 
     out_dir = os.path.join('/nfs', 'data3', 'akett_data', 'results', f'subset_{sub}_bc_{bc_method}_hvg_{filter_hvg}_paga_{paga}')
@@ -42,8 +42,10 @@ for sub in ['Alveolar epithelium']:#set(adata_all.obs['ann_level_2'].values[0]):
         bc.correct_batch()
         adata.write_h5ad(filename=os.path.join(out_dir, out_afx+'_batch_corrected.h5ad'))
 
-    pti = PseudotimeInferenceFactory().get_pseudotime_algorithm(adata, method='dpt', num_pcs=50, paga=paga, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)
-    pti.infer_pseudotime()
+    pb = PseudobulkClustererFactory().get_pseudobulk_clusterer(adata, method='metacells')
+    pb.cluster_pseudobulks()
 
-    print(f'Start pseudo bulk clustering with TODO')
+    #pti = PseudotimeInferenceFactory().get_pseudotime_algorithm(adata, method='dpt', num_pcs=50, paga=paga, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)
+    #pti.infer_pseudotime()
+
 
