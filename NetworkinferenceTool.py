@@ -40,15 +40,22 @@ class GRNBoost2InferenceTool(NetworkinferenceTool):
         self.out_dir = kwargs['out_dir'] if kwargs['out_dir'] else os.getcwd()
         self.tf_path = kwargs['tf_path']
 
-    def infer_network(self):
-        std = self.adata.X.toarray().std(axis=0)
-        mean = self.adata.X.toarray().mean(axis=0)
+    def infer_network(self):        
+        expr = self.adata.to_df()
+        expr_std = expr.loc[:, expr.std() != 0]
         with open('excluded_cells.txt', 'a') as f:
-            f.write(f'Mean: {mean}\n')
-            f.write(f'Std: {std}\n')
-        arr = (self.adata.X-mean)/std
-        ex_matrix = pd.DataFrame(arr, columns=self.adata.var_names, index=self.adata.obs_names)
+            f.write(f'Removing columns with standard deviation = 0. Before: {len(expr.columns)} genes.\n')
+            f.write(set(expr.columns).difference(set(expr_std.columns)))
+            f.write('\n')
+            f.write(f'After: {len(expr.columns)} genes.\n')
+
+        normalized_df=(expr_std-expr_std.mean(axis=0))/expr_std.std(axis=0)
+                
+        with open('excluded_cells.txt', 'a') as f:
+            f.write(f'Mean: {expr_std.mean(axis=0)}\n')
+            f.write(f'Std: {expr_std.std(axis=0)}\n')
+            
         tf_names = load_tf_names(self.tf_path)
-        network = grnboost2(expression_data=ex_matrix, tf_names=tf_names)
+        network = grnboost2(expression_data=normalized_df, tf_names=tf_names, verbose=True, seed=123456)
         return network
 

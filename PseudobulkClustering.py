@@ -84,7 +84,6 @@ class MetacellsClusterer(PseudobulkClusterer):
 
         mc.ut.set_name(cells, "hca_bm.one-pass.preliminary.cells")
 
-        #cells = self.filter_genes_cells(cells)
         cells = self.set_lateral_genes(cells) # this doesn't do anything, but the according masks have to be set for the algorithm to work
 
         with open('excluded_cells.txt', 'a') as f:
@@ -106,6 +105,8 @@ class MetacellsClusterer(PseudobulkClusterer):
             f.write(f"{metacells.n_obs} metacells, {metacells.n_vars} genes\n")
         
         # remove the 'unclustered'-metacell and map metacell index in cells anndata to actual metacell identifier
+        with open('excluded_cells.txt', 'a') as f:
+            f.write(f'Removing {len(cells[cells.obs["metacell"] == -1])} unclustered cells.\n')
         cells = cells[cells.obs['metacell'] != -1]
         cells = self.map_metacell_index(cells, metacells)
 
@@ -142,9 +143,6 @@ class MetacellsClusterer(PseudobulkClusterer):
             metacells.obs.loc[is_informative, 'informative_' + index] = True
             metacells.obs.loc[~is_informative, 'informative_' + index] = False
         
-        with open('excluded_cells.txt', 'a') as f:
-            f.write(f'Number of metacell stem cells: {len(metacells.obs[metacells.obs["ann_level_2"] == "Hematopoietic stem cells"])}\n')
-
         # save both cells and metacells anndata
         dataset = cells.obs['dataset'].unique()[0]
         assert len(cells.obs['dataset'].unique()) == 1
@@ -156,80 +154,8 @@ class MetacellsClusterer(PseudobulkClusterer):
         self.adata = metacells
         return self.adata
 
-    def filter_genes_cells(self, full):
-        """Apply quality control to filter genes and cells based on specified criteria.
-
-        Parameters
-        ----------
-        full : AnnData
-            Annotated data object containing single-cell RNA-seq data.
-
-        Returns
-        -------
-        AnnData
-            Annotated data object containing filtered and cleaned data.
-        """
-        PROPERLY_SAMPLED_MIN_CELL_TOTAL = 0#800
-        PROPERLY_SAMPLED_MAX_CELL_TOTAL = np.inf#20000
-
-        total_umis_per_cell = mc.ut.get_o_numpy(full, "__x__", sum=True)
-
-        too_small_cells_count = np.sum(total_umis_per_cell < PROPERLY_SAMPLED_MIN_CELL_TOTAL)
-        too_large_cells_count = np.sum(total_umis_per_cell > PROPERLY_SAMPLED_MAX_CELL_TOTAL)
-
-        total_umis_per_cell = mc.ut.get_o_numpy(full, name="__x__", sum=True)
-        too_small_cells_percent = 100.0 * too_small_cells_count / full.n_obs
-        too_large_cells_percent = 100.0 * too_large_cells_count / full.n_vars
-
-        with open('excluded_cells.txt', 'a') as f:
-            f.write(
-                f"Will exclude {too_small_cells_count} ({too_small_cells_percent:.2f}%%) cells"
-                f" with less than {PROPERLY_SAMPLED_MIN_CELL_TOTAL} UMIs\n"
-            )
-            f.write(
-                f"Will exclude {too_large_cells_count} ({too_large_cells_percent:.2f}%%) cells"
-                f" with more than {PROPERLY_SAMPLED_MAX_CELL_TOTAL} UMIs\n"
-            )
-        
-        mc.pl.exclude_genes(full, random_seed=123456)
-        mc.tl.compute_excluded_gene_umis(full)
-        
-        PROPERLY_SAMPLED_MAX_EXCLUDED_GENES_FRACTION = 1
-
-        excluded_umis_fraction_regularization = 1e-3  # Avoid 0 values in log scale plot.
-        excluded_umis_per_cell = mc.ut.get_o_numpy(full, "excluded_umis")
-        excluded_umis_fraction_per_cell = excluded_umis_per_cell / total_umis_per_cell
-
-        excluded_umis_fraction_per_cell += excluded_umis_fraction_regularization
-        excluded_umis_fraction_per_cell -= excluded_umis_fraction_regularization
-
-        too_excluded_cells_count = np.sum(
-            excluded_umis_fraction_per_cell > PROPERLY_SAMPLED_MAX_EXCLUDED_GENES_FRACTION
-        )
-        too_excluded_cells_fraction = too_excluded_cells_count / len(total_umis_per_cell)
-
-        with open('excluded_cells.txt', 'a') as f:
-            f.write(
-                f"Will exclude {too_excluded_cells_count} ({100 * too_excluded_cells_fraction:.2f}%) cells\n"
-                f" with more than {100 * PROPERLY_SAMPLED_MAX_EXCLUDED_GENES_FRACTION:.2f}% excluded gene UMIs\n"
-            )
-        mc.pl.exclude_cells(
-            full,
-            properly_sampled_min_cell_total=PROPERLY_SAMPLED_MIN_CELL_TOTAL,
-            properly_sampled_max_cell_total=PROPERLY_SAMPLED_MAX_CELL_TOTAL,
-            properly_sampled_max_excluded_genes_fraction=PROPERLY_SAMPLED_MAX_EXCLUDED_GENES_FRACTION,
-        )
-        clean = mc.pl.extract_clean_data(full, name="hca_bm.iteration-1.clean")
-        mc.ut.top_level(clean)
-        with open('excluded_cells.txt', 'a') as f:
-            f.write(
-                f"Clean: {clean.n_obs} cells, {clean.n_vars} genes\n"
-            )
-        full = None
-        return clean
-
     def set_lateral_genes(self, cells):
-        """Mark lateral genes and remove noisy genes from the given cell data. TODO not implemented!
+        """Mark lateral genes and remove noisy genes from the given cell data. Does nothing, only called to set empty masks on cells data.
 
         Parameters
         ----------
@@ -247,10 +173,6 @@ class MetacellsClusterer(PseudobulkClusterer):
             lateral_gene_patterns=LATERAL_GENE_PATTERNS,
         )
 
-        lateral_gene_mask = mc.ut.get_v_numpy(cells, "lateral_gene")
-        lateral_gene_names = set(cells.var_names[lateral_gene_mask])
-
-        # remove noisy genes
         NOISY_GENE_NAMES = []
         # This will mark as "noisy_gene" any genes that match the above, if they exist in the clean dataset.
         mc.pl.mark_noisy_genes(cells, noisy_gene_names=NOISY_GENE_NAMES)

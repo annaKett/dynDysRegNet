@@ -65,35 +65,27 @@ class DPT(PseudotimeInference):
         self.out_dir = kwargs['out_dir'] if kwargs['out_dir'] else os.getcwd()
         self.out_afx = kwargs['out_afx'] if kwargs['out_afx'] else 'unspecified'
         self.paga = kwargs['paga'] if kwargs['paga'] else False
+        self.rep = kwargs['rep'] if kwargs['rep'] else 'X'
 
     def infer_pseudotime(self):
         """Infer diffusion pseudotime (DPT)."""
         #  first, use paga to infer a graph of cell paths
-        sc.pp.neighbors(self.adata, n_neighbors=10, n_pcs=self.num_pcs, use_rep='X_pca', method='gauss')
+        sc.pp.neighbors(self.adata, n_neighbors=10, n_pcs=self.num_pcs, use_rep=self.rep, method='gauss')
         # The width of the connectivity kernel is implicitly determined by the number of neighbors used to compute the single-cell graph in neighbors()
         sc.tl.diffmap(self.adata)
-        # compute neighbors based on diffmap representation
-        #sc.pp.neighbors(self.adata, n_neighbors=10, use_rep='X_diffmap', method='gauss')
-        
+
         if self.paga:
             self._apply_paga()
 
-        # then, use dpt to link paga paths with a pseudotime
-        stem = np.flatnonzero(self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells')
-        np.random.seed(123456789)
-        index = np.random.choice(stem.shape[0], 1, replace=False)
-        self.adata.uns['iroot'] = stem[index][0]
+        #stem = np.flatnonzero(self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells')
+        #np.random.seed(123456789)
+        #index = np.random.choice(stem.shape[0], 1, replace=False)
+        
+        stem = self.adata.obs[self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells']
+        largest_stem = stem['grouped'].idxmax()
+        self.adata.uns['iroot'] = stem[largest_stem]
         # use neighbors and diffmap to compute dpt pseudotime
         sc.tl.dpt(self.adata)
-
-        #super().plot_scatter(self.adata, os.path.join(self.out_dir, self.out_afx + '_5_dpt.png'), '5: PCA embedding colored by pseudo time', 'pca', ['dpt_pseudotime'])
-        #super().plot_scatter(self.adata, os.path.join(self.out_dir, self.out_afx + '_6_dpt.png'), '6: Diffmap colored by pseudo time', 'diffmap', ['dpt_pseudotime'])
-        #super().plot_scatter(self.adata, os.path.join(self.out_dir, self.out_afx + '_7_dpt.png'), '7: Diffmap colored by cell_type', 'diffmap', ['cell_type'])
-
-        #sc.pl.dpt_groups_pseudotime(self.adata)
-        #sc.pl.dpt_timeseries(self.adata)
-
-        self.adata.write_h5ad(filename=os.path.join(self.out_dir, self.out_afx+'_dpt.h5ad'))
 
     def _apply_paga(self):
             sc.tl.draw_graph(self.adata) # uses connectivities from neighbors
