@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import os
 import scvi
 import torch
+from scvi.model.utils import mde
 
 class BatchCorrectorFactory:
     """Factory class to find and return the required batch correction algorithm. TODO Thid could be changed into an enum later.
@@ -106,12 +107,17 @@ class SCANVIBatchCorrector(BatchCorrector):
             batch_key="dataset",
             subset=True,
         )
+        with open('excluded_cells.txt', 'a') as f:
+            f.write('Highly variable genes scanvi:\n')
+            f.write(len(self.adata.var[self.adata.var['highly_variable']]))
         if os.path.exists(os.path.join(self.out_dir, 'raw_hlca_core.pt')):
             scanvi_model = scvi.load(os.path.join(self.out_dir, 'raw_hlca_core_scanvi_model.pt'), self.adata)
         else:
             scvi.model.SCVI.setup_anndata(self.adata, batch_key="dataset")
             model = scvi.model.SCVI(self.adata, n_layers=2, n_latent=30, gene_likelihood="nb")
             model.train()
+            self.adata.obsm["X_scVI"] = model.get_latent_representation()
+            self.adata.obsm["X_mde"] = mde(self.adata.obsm["X_scVI"])
             scanvi_model = scvi.model.SCANVI.from_scvi_model(
                 model,
                 adata=self.adata,

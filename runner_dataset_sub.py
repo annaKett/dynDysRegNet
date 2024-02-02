@@ -63,7 +63,6 @@ if __name__ == '__main__':
     metacells_all = ad.concat(subsets)
     with open('excluded_cells.txt', 'a') as f:
         f.write(f'Number of stem metacells: {len(metacells_all[metacells_all.obs["ann_level_2"] == "Hematopoietic stem cells"])}\n')
-        f.write(f'Total number of cells: {len(metacells_all.obs)}')
     with open('excluded_cells.txt', 'a') as f:
         f.write(f'Total number of cells after removing uninformative metacells regarding ann_level_2: {len(metacells_all.obs)}')    
     with open('excluded_cells.txt', 'a') as f:
@@ -71,26 +70,35 @@ if __name__ == '__main__':
     metacells_all.write_h5ad(os.path.join(out_dir, f'hlca_core_metacells_all.h5ad'))
 
     # compute batch corrected PCA embedding
-    if os.path.exists(os.path.join(out_dir, f'hlca_core_metacells_all_batch_corrected.h5ad')):
-        metacells_all = sc.read_h5ad(os.path.join(out_dir, f'hlca_core_metacells_all_batch_corrected.h5ad'))
-    else:
-        bc = BatchCorrectorFactory().get_batch_corrector(
-            metacells_all, 
-            method='scanvi', 
-            num_pcs=50, 
-            data_dir=data_dir, 
-            out_dir=out_dir, 
-            out_afx=out_afx, 
-            verbose=True, 
-            rep='X_scvi') 
-        bc.correct_batch()
-        metacells_all.write_h5ad(filename=os.path.join(out_dir, 'hlca_core_metacells_all_batch_corrected.h5ad'))
+    #if os.path.exists(os.path.join(out_dir, f'hlca_core_metacells_all_batch_corrected.h5ad')):
+        #metacells_all = sc.read_h5ad(os.path.join(out_dir, f'hlca_core_metacells_all_batch_corrected.h5ad'))
+    #else:
+    bc = BatchCorrectorFactory().get_batch_corrector(
+        metacells_all, 
+        method='scanvi', 
+        num_pcs=50, 
+        data_dir=data_dir, 
+        out_dir=out_dir, 
+        out_afx=out_afx, 
+        verbose=True
+    ) 
+    bc.correct_batch()
+    metacells_all.write_h5ad(filename=os.path.join(out_dir, 'hlca_core_metacells_all_batch_corrected.h5ad'))
 
     # compute pseudo time from batch corrected PCA embedding
     if os.path.exists(os.path.join(out_dir, f'hlca_core_metacells_all_dpt.h5ad')):
         metacells_all = sc.read_h5ad(os.path.join(out_dir, f'hlca_core_metacells_all_dpt.h5ad'))
     else:
-        pti = PseudotimeInferenceFactory().get_pseudotime_algorithm(metacells_all, method='dpt', num_pcs=50, paga=paga, data_dir=data_dir, out_dir=out_dir, out_afx=out_afx, verbose=True)
+        pti = PseudotimeInferenceFactory().get_pseudotime_algorithm(
+            metacells_all, method='dpt', 
+            #num_pcs=50, 
+            paga=paga, 
+            data_dir=data_dir, 
+            out_dir=out_dir, 
+            out_afx=out_afx, 
+            verbose=True, 
+            rep='X_scANVI'
+        )
         pti.infer_pseudotime()
         metacells_all.write_h5ad(filename=os.path.join(out_dir, 'hlca_core_metacells_all_dpt.h5ad'))
 
