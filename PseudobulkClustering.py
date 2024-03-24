@@ -64,7 +64,7 @@ class MetacellsClusterer(PseudobulkClusterer):
               Output directory. Default is the current working directory.
         """
         self.adata = adata
-        self.target_metacell_size = kwargs['target_metacell_size'] if kwargs['target_metacell_size'] else 100
+        self.target_metacell_size = kwargs['target_metacell_size'] if kwargs['target_metacell_size'] else 13
         self.verbose = kwargs['verbose'] if kwargs['verbose'] else True
         self.out_dir = kwargs['out_dir'] if kwargs['out_dir'] else os.getcwd()
 

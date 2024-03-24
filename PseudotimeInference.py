@@ -24,8 +24,6 @@ class PseudotimeInferenceFactory:
         """
         if method == 'dpt':
             return DPT(adata, **kwargs)
-        elif method == 'paga':
-            return Paga(adata, **kwargs)
         else:
             raise ValueError(method)
 
@@ -59,7 +57,7 @@ class DPT(PseudotimeInference):
 
     def __init__(self, adata, **kwargs):
         self.adata = adata
-        #self.num_pcs = kwargs['num_pcs'] if kwargs['num_pcs'] else 50
+        self.num_pcs = kwargs['num_pcs'] if kwargs['num_pcs'] else 50
         self.data_dir = kwargs['data_dir'] if kwargs['data_dir'] else os.getcwd()
         self.verbose = kwargs['verbose'] if kwargs['verbose'] else True
         self.out_dir = kwargs['out_dir'] if kwargs['out_dir'] else os.getcwd()
@@ -70,24 +68,24 @@ class DPT(PseudotimeInference):
     def infer_pseudotime(self):
         """Infer diffusion pseudotime (DPT)."""
         #  first, use paga to infer a graph of cell paths
-        sc.pp.neighbors(self.adata, n_neighbors=10, use_rep=self.rep, method='gauss') #num_pcs=50
+        sc.pp.neighbors(self.adata, n_neighbors=15, n_pcs=self.num_pcs, use_rep=self.rep)
+        
         # The width of the connectivity kernel is implicitly determined by the number of neighbors used to compute the single-cell graph in neighbors()
         sc.tl.diffmap(self.adata)
 
         if self.paga:
             self._apply_paga()
 
-        #stem = np.flatnonzero(self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells')
-        #np.random.seed(123456789)
-        #index = np.random.choice(stem.shape[0], 1, replace=False)
-        
         stem = self.adata[self.adata.obs['ann_level_2']  == 'Hematopoietic stem cells']
-        largest_stem = stem['grouped'].idxmax()
-        print(largest_stem)
-        self.adata.uns['iroot'] = stem[largest_stem]
-        print(self.adata.uns['iroot'])
+        largest_stem = stem.obs['grouped'].idxmax()
+
+        largest_stem = self.adata.obs.index.get_loc(largest_stem)
+        self.adata.uns['iroot'] = largest_stem
+        print(f'Root cell index for dpt inference: {self.adata.uns["iroot"]}')
+        
         # use neighbors and diffmap to compute dpt pseudotime
         sc.tl.dpt(self.adata)
+
 
     def _apply_paga(self):
             sc.tl.draw_graph(self.adata) # uses connectivities from neighbors

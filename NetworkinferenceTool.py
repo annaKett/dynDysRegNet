@@ -45,8 +45,6 @@ class GRNBoost2InferenceTool(NetworkinferenceTool):
         expr_std = expr.loc[:, expr.std() != 0]
         with open('excluded_cells.txt', 'a') as f:
             f.write(f'Removing columns with standard deviation = 0. Before: {len(expr.columns)} genes.\n')
-            f.write(set(expr.columns).difference(set(expr_std.columns)))
-            f.write('\n')
             f.write(f'After: {len(expr.columns)} genes.\n')
 
         normalized_df=(expr_std-expr_std.mean(axis=0))/expr_std.std(axis=0)

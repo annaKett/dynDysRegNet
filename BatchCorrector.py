@@ -125,8 +125,6 @@ class SCANVIBatchCorrector(BatchCorrector):
                 unlabeled_category="None",
             )
             scanvi_model.train(max_epochs=20, n_samples_per_label=100)
-            #scanvi_model.save_state_dict(os.path.join(self.out_dir, 'raw_hlca_core.pt'))
-            #torch.save(scanvi_model.state_dict(), os.path.join(self.out_dir, 'raw_hlca_core_scanvi_model.pt'))
             scanvi_model.save(os.path.join(self.out_dir, 'raw_hlca_core_scanvi_model.pt'))
 
         SCANVI_LATENT_KEY = "X_scANVI"
