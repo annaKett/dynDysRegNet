@@ -121,7 +121,7 @@ class MetacellsClusterer(PseudobulkClusterer):
 
             e = np.inf
             if index_before:
-                # inherit annotation from coarser annotation level if annotation is None on current annotation level
+                # inherit annotation from coarser annotation level if annotation is None on current annotation level (with HLCA core, this did not make a difference for ann_level_2)
                 cells = self.inherit_level_annotation_if_none(cells, index_before, index)
                 # compute overall entropy from original data (don't filter out unclustered cells)
                 e = entropy(cells.obs[index].value_counts(normalize=False).values)
@@ -136,7 +136,7 @@ class MetacellsClusterer(PseudobulkClusterer):
             maj = self.get_majority_vote(result_df)
             metacells = self.map_metacell_annotation(maj, metacells, index)
 
-            # mask metacells that are less informative on the current level than the unclustered cells
+            # mask metacells that are less informative on the current level than the unclustered cells BAED ON THE INHERITED ANNOTATIONS
             is_informative = shannon_entropy <= e
             metacells.obs['informative_' + index] = None
             metacells.obs = metacells.obs.astype({'informative_' + index: bool})

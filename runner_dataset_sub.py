@@ -6,7 +6,6 @@ import os
 from BatchCorrector import BatchCorrectorFactory
 from PseudotimeInference import PseudotimeInferenceFactory
 from PseudobulkClustering import PseudobulkClustererFactory
-from NetworkinferenceTool import NetworkinferenceToolFactory
 
 if __name__ == '__main__':
     sc.settings.verbosity = 0
@@ -99,36 +98,9 @@ if __name__ == '__main__':
             out_dir=out_dir, 
             out_afx=out_afx, 
             verbose=True, 
-            rep='X_scANVI'
+            rep='X_scANVI' # this is important: if you use a different batch correction method, you won't have this embedding. Use the according batch corrected embedding you get from your method
         )
         pti.infer_pseudotime()
         metacells_all.write_h5ad(filename=os.path.join(out_dir, 'hlca_core_metacells_all_dpt.h5ad'))
-
-    tf_path = os.path.join(data_dir, 'human_known_tfs.txt')
-    
-    # continue with metacells and all genes
-    metacells_all = tmp
-    print(len(metacells_all.var_names))
-    
-    import scipy
-    if scipy.sparse.issparse(metacells_all.X):
-        dense_X = metacells_all.X.toarray()
-    else:
-        dense_X = metacells_all.X
-    expr = pd.DataFrame(dense_X, index=metacells_all.obs_names, columns=metacells_all.var_names)
-    
-    network_cells = metacells_all[(metacells_all.obs['ann_level_2'] == 'Hematopoietic stem cells') |(metacells_all.obs['ann_level_2'] == 'Airway epithelium')]                                
-
-    nit = NetworkinferenceToolFactory().get_networkinference_tool(network_cells, method='grnboost2', tf_path=tf_path, out_dir=out_dir, verbose=True)
-    network = nit.infer_network()
-    network = network.sort_values(by='importance', ascending=False)
-    network.to_csv(os.path.join(out_dir, f'network_stem_airway_epithelium.csv'), sep='\t', index=False)
-    adjacency_matrix = network.pivot(index='TF', columns='target', values='importance').fillna(0)
-    adjacency_matrix.to_csv('network_stem_airway_epithelium_adjacency.csv')
-    
-        
-
-
-
 
 

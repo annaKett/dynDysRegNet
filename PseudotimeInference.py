@@ -67,7 +67,7 @@ class DPT(PseudotimeInference):
 
     def infer_pseudotime(self):
         """Infer diffusion pseudotime (DPT)."""
-        #  first, use paga to infer a graph of cell paths
+        #  first, get neighbor graph from specified embedding
         sc.pp.neighbors(self.adata, n_neighbors=15, n_pcs=self.num_pcs, use_rep=self.rep)
         
         # The width of the connectivity kernel is implicitly determined by the number of neighbors used to compute the single-cell graph in neighbors()
